@@ -1,115 +1,118 @@
-/*
- * Copyright (C) 2021 The Android Open Source Project
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
-  * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2020, the Flutter project authors. Please see the AUTHORS file
+// for details. All rights reserved. Use of this source code is governed by a
+// BSD-style license that can be found in the LICENSE file.
 
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:window_size/window_size.dart';
 
-Future<void> main() async {
-  runApp(const MyApp());
+import 'src/autofill.dart';
+import 'src/form_widgets.dart';
+import 'src/http/mock_client.dart';
+import 'src/sign_in_http.dart';
+import 'src/validation.dart';
+
+void main() {
+  setupWindow();
+  runApp(const FormApp());
 }
 
-/* Main widget that contains the Flutter starter app. */
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+const double windowWidth = 480;
+const double windowHeight = 854;
+
+void setupWindow() {
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+    WidgetsFlutterBinding.ensureInitialized();
+    setWindowTitle('Form Samples');
+    setWindowMinSize(const Size(windowWidth, windowHeight));
+    setWindowMaxSize(const Size(windowWidth, windowHeight));
+    getCurrentScreen().then((screen) {
+      setWindowFrame(Rect.fromCenter(
+        center: screen!.frame.center,
+        width: windowWidth,
+        height: windowHeight,
+      ));
+    });
+  }
+}
+
+final demos = [
+  Demo(
+    name: 'Sign in with HTTP',
+    route: '/signin_http',
+    builder: (context) => SignInHttpDemo(
+      // This sample uses a mock HTTP client.
+      httpClient: mockClient,
+    ),
+  ),
+  Demo(
+    name: 'Autofill',
+    route: '/autofill',
+    builder: (context) => const AutofillDemo(),
+  ),
+  Demo(
+    name: 'Form widgets',
+    route: '/form_widgets',
+    builder: (context) => const FormWidgetsDemo(),
+  ),
+  Demo(
+    name: 'Validation',
+    route: '/validation',
+    builder: (context) => const FormValidationDemo(),
+  ),
+];
+
+class FormApp extends StatelessWidget {
+  const FormApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      title: 'Form Samples',
+      theme: ThemeData(primarySwatch: Colors.teal),
+      routes: Map.fromEntries(demos.map((d) => MapEntry(d.route, d.builder))),
+      home: const HomePage(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          children: [
-            const Padding(
-                padding: EdgeInsets.only(top: 42, bottom: 250),
-                child: Align(
-                    alignment: Alignment.topCenter, child: CustomAppBar())),
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
+      appBar: AppBar(
+        title: const Text('Form Samples'),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
+      body: ListView(
+        children: [...demos.map((d) => DemoTile(demo: d))],
       ),
     );
   }
 }
 
-/* A Flutter implementation of the last frame of the splashscreen animation */
-class CustomAppBar extends StatelessWidget {
-  const CustomAppBar({super.key});
+class DemoTile extends StatelessWidget {
+  final Demo? demo;
+
+  const DemoTile({this.demo, super.key});
 
   @override
   Widget build(BuildContext context) {
-    Widget titleSection = Row(
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 12, right: 4),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(36.0),
-            child: Image.asset(
-              'images/androidIcon.png',
-              width: 72.0,
-              height: 72.0,
-              fit: BoxFit.fill,
-            ),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.only(top: 3),
-          child: Text("Super Splash Screen Demo",
-              style: TextStyle(color: Colors.black54, fontSize: 24)),
-        ),
-      ],
+    return ListTile(
+      title: Text(demo!.name),
+      onTap: () {
+        Navigator.pushNamed(context, demo!.route);
+      },
     );
-    return titleSection;
   }
+}
+
+class Demo {
+  final String name;
+  final String route;
+  final WidgetBuilder builder;
+
+  const Demo({required this.name, required this.route, required this.builder});
 }
